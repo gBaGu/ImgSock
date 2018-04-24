@@ -15,7 +15,7 @@ size_t read_complete(char * buff, const error_code & err, size_t bytes);
 class ImageListener
 {
 public:
-	ImageListener(boost::asio::io_service& ioService, int port)
+	ImageListener(boost::asio::io_service& ioService, size_t port)
 		:
 		acceptor(ioService, tcp::endpoint(tcp::v4(), port)),
 		sock(ioService)
@@ -24,6 +24,7 @@ public:
 	}
 
 	void handleConnections();
+	void setOnReceived(std::function<void(cv::Mat)> f) { onReceived = f; }
 
 	tcp::socket& getSocket() { return sock; }
 
