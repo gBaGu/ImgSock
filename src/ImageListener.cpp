@@ -30,7 +30,7 @@ size_t read_complete(char * buff, const error_code & err, size_t bytes)
 
 void ImageListener::handleConnections()
 {
-	char buff[1024];
+	char buff[2048];
 	while (true)
 	{
 		std::cout << "Listening..." << std::endl;
@@ -41,19 +41,30 @@ void ImageListener::handleConnections()
 		while (alive)
 		{
 			error_code ec;
-			int bytesRead = read(sock, boost::asio::buffer(buff),
-				boost::bind(read_complete, buff, _1, _2), ec);
+			std::string data;
+			int bytesRead = 0;
+			do
+			{
+				bytesRead = read(sock, boost::asio::buffer(buff),
+					boost::bind(read_complete, buff, _1, _2), ec);
+				data.append(buff, bytesRead);
+			} while (!ec && bytesRead > 0 && *(buff + (bytesRead - 1)) != '}');
+
 			if (ec)
 			{
 				std::cout << "Failed to read data from socket." << std::endl;
-				alive = false;
+				if (!(ec == boost::system::errc::stream_timeout || ec == boost::system::errc::timed_out))
+				{
+					std::cout << "Error code: " << ec.message() << std::endl;
+					alive = false;
+				}
 				continue;
 			}
 
 			cv::Mat img;
 			try
 			{
-				img = parseJson(buff, bytesRead);
+				img = parseJson(data);
 			}
 			catch (const std::exception& ex)
 			{
@@ -62,14 +73,15 @@ void ImageListener::handleConnections()
 			}
 			onReceived(img);
 		}
+		sock.close();
 	}
 }
 
-cv::Mat ImageListener::parseJson(char* buff, int bytes)
+cv::Mat ImageListener::parseJson(const std::string& json)
 {
 	ptree pt;
 	std::stringstream ss;
-	ss.write(buff, bytes);
+	ss << json;
 	read_json(ss, pt);
 
 	std::vector<unsigned char> data;

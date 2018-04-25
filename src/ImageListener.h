@@ -34,5 +34,5 @@ private:
 
 	std::function<void(cv::Mat)> onReceived;
 
-	cv::Mat parseJson(char* buff, int bytes);
+	cv::Mat parseJson(const std::string& json);
 };
