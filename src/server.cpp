@@ -13,6 +13,8 @@
 #include <boost/archive/iterators/transform_width.hpp>
 #include <boost/archive/iterators/insert_linebreaks.hpp>
 
+#include <opencv2/opencv.hpp>
+
 #include "ImageListener.h"
 
 namespace fs = std::experimental::filesystem;
@@ -80,7 +82,7 @@ int main()
 		pt.put("data", data);
 		pt.put("width", img.cols);
 		pt.put("height", img.rows);
-		pt.put("chanels", img.elemSize());
+		pt.put("channels", img.elemSize());
 		std::stringstream ss;
 		write_json(ss, pt);
 		try
