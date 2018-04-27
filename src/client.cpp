@@ -17,6 +17,19 @@ typedef insert_linebreaks<base64_from_binary<transform_width<std::vector<unsigne
 
 const size_t PORT = 8080;
 
+
+size_t read_complete(char * buff, const boost::system::error_code & err, size_t bytes)
+{
+	if (err) return 0;
+	if (bytes == 0)
+	{
+		return 1;
+	}
+
+	return *(buff + (bytes - 1)) == '}' ? 0 : 1;
+}
+
+
 int main()
 {
 	boost::asio::io_service service;
@@ -44,7 +57,26 @@ int main()
 	{
 		std::cout << "Failed to write to client: " << ex.what() << std::endl;
 	}
-	std::cout << json << std::endl;
+	std::cout << "Send: " << json << std::endl;
+
+	char buff[2048];
+	boost::system::error_code ec;
+	data.clear();
+	int bytesRead = 0;
+	do
+	{
+		bytesRead = read(sock, boost::asio::buffer(buff),
+			boost::bind(read_complete, buff, _1, _2), ec);
+		data.append(buff, bytesRead);
+	} while (!ec && bytesRead > 0 && *(buff + (bytesRead - 1)) != '}');
+
+	if (ec)
+	{
+		std::cout << "Failed to read data from socket: "
+			<< "Error code: " << ec.message() << std::endl;
+	}
+
+	std::cout << "Read: " << data << std::endl;
 
 	return 0;
 }
