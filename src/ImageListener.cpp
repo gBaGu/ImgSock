@@ -10,6 +10,8 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
+#include "Setting.h"
+
 using namespace boost::archive::iterators;
 using boost::property_tree::ptree;
 
@@ -28,9 +30,20 @@ size_t read_complete(char * buff, const error_code & err, size_t bytes)
 }
 
 
+ImageListener::ImageListener(boost::asio::io_service& ioService, size_t port)
+	:
+	acceptor(ioService, tcp::endpoint(tcp::v4(), port)),
+	sock(ioService)
+{
+	onReceived = [](cv::Mat img) {};
+	converter = std::make_unique<JPEGConverter>();
+}
+
 void ImageListener::handleConnections()
 {
-	char buff[2048];
+	const int BYTES_PER_NUM = 6;
+	char buff[BUFF_SIZE];
+
 	while (true)
 	{
 		std::cout << "Listening..." << std::endl;
@@ -41,36 +54,60 @@ void ImageListener::handleConnections()
 		while (alive)
 		{
 			error_code ec;
-			std::string data;
 			int bytesRead = 0;
+			//*****READ IMAGE SIZE*****
+			bytesRead = read(sock, boost::asio::buffer(buff, BUFF_SIZE),
+				boost::asio::transfer_exactly(BYTES_PER_NUM), ec);
+			std::cout << "Bytes (nImageSize): " << bytesRead << std::endl;
+			if (ec)
+			{
+				std::cout << "Unable to read from socket" << std::endl;
+				alive = false;
+				continue;
+			}
+
+			std::string str(buff, buff + BYTES_PER_NUM);
+			std::cout << str << std::endl;
+			int nImageSize = 0;
+			try
+			{
+				nImageSize = stoi(str);
+			}
+			catch (const std::invalid_argument& ex)
+			{
+				std::cout << "Unable to parse size of the image.\n"
+					"Check length (should be 6 bytes)" << std::endl;
+				alive = false;
+				continue;
+			}
+			//=========================
+			//*****READ IMAGE DATA*****
+			std::string data;
+			bytesRead = 0;
+			int bytesRemain = nImageSize;
 			do
 			{
-				bytesRead = read(sock, boost::asio::buffer(buff),
-					boost::bind(read_complete, buff, _1, _2), ec);
+				bytesRead = read(sock, boost::asio::buffer(buff, BUFF_SIZE),
+					boost::asio::transfer_exactly(bytesRemain), ec);
 				data.append(buff, bytesRead);
-			} while (!ec && bytesRead > 0 && *(buff + (bytesRead - 1)) != '}');
+				bytesRemain -= bytesRead;
+				std::cout << "Bytes (image): " << bytesRead << std::endl;
+			} while (!ec && bytesRemain > 0);
 
 			if (ec)
 			{
 				std::cout << "Failed to read data from socket." << std::endl;
-				if (!(ec == boost::system::errc::stream_timeout || ec == boost::system::errc::timed_out))
+				if (!(ec == boost::system::errc::stream_timeout ||
+						ec == boost::system::errc::timed_out))
 				{
 					std::cout << "Error code: " << ec.message() << std::endl;
 					alive = false;
 				}
 				continue;
 			}
-
-			cv::Mat img;
-			try
-			{
-				img = parseJson(data);
-			}
-			catch (const std::exception& ex)
-			{
-				std::cout << "Failed to parse json: " << ex.what() << std::endl;
-				continue;
-			}
+			//=========================
+			std::vector<unsigned char> ucdata(data.begin(), data.begin() + nImageSize);
+			cv::Mat img = converter->fromData(ucdata);
 			onReceived(img);
 		}
 		sock.close();

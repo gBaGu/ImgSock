@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include <thread>
 #include <queue>
 #include <mutex>
@@ -29,11 +30,14 @@ const fs::path IMG_DIR = "img";
 
 void save(cv::Mat img)
 {
-	const int BUFF_LEN = 25;
+	/*const int BUFF_LEN = 25;
 	char buff[BUFF_LEN];
 	time_t t = time(0);
 	strftime(buff, BUFF_LEN, "%Y-%m-%d %H:%M:%S", localtime(&t));
-	std::string fullname = (IMG_DIR / (std::string(buff) + ".jpg")).string();
+	std::string fullname = (IMG_DIR / (std::string(buff) + ".jpg")).string();*/
+	static int n = 0;
+	std::string fullname = (IMG_DIR / (std::to_string(n++) + ".jpg")).string();
+	std::cout << fullname << std::endl;
 	cv::imwrite(fullname, img);
 }
 
@@ -51,11 +55,14 @@ int main()
 	imgListener.setOnReceived([&](cv::Mat img)
 		{
 			if (img.empty())
+			{
+				std::cout << "Image is empty." << std::endl;
 				return;
+			}
 
 			save(img);
-			std::lock_guard<std::mutex> lock(mFrames);
-			frames.push(img);
+			//std::lock_guard<std::mutex> lock(mFrames);
+			//frames.push(img);
 		});
 
 	std::thread t1([&imgListener]() { imgListener.handleConnections(); });
