@@ -12,9 +12,6 @@ using boost::asio::ip::tcp;
 using boost::system::error_code;
 
 
-size_t read_complete(char * buff, const error_code & err, size_t bytes);
-
-
 class ImageListener
 {
 public:
@@ -31,6 +28,4 @@ private:
 	std::unique_ptr<ImageConverter> converter;
 
 	std::function<void(cv::Mat)> onReceived;
-
-	cv::Mat parseJson(const std::string& json);
 };

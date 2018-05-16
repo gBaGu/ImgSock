@@ -8,33 +8,19 @@
 #include <experimental/filesystem>
 
 #include <boost/asio.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/archive/iterators/base64_from_binary.hpp>
-#include <boost/archive/iterators/transform_width.hpp>
-#include <boost/archive/iterators/insert_linebreaks.hpp>
 
 #include <opencv2/opencv.hpp>
 
+#include "Setting.h"
 #include "ImageListener.h"
 
 namespace fs = std::experimental::filesystem;
-using namespace boost::archive::iterators;
-using boost::property_tree::ptree;
 
-typedef insert_linebreaks<base64_from_binary<transform_width<std::vector<unsigned char>::const_iterator,6,8> >, 72 > it_base64_t;
-
-const size_t PORT = 8080;
 const fs::path IMG_DIR = "img";
 
 
 void save(cv::Mat img)
 {
-	/*const int BUFF_LEN = 25;
-	char buff[BUFF_LEN];
-	time_t t = time(0);
-	strftime(buff, BUFF_LEN, "%Y-%m-%d %H:%M:%S", localtime(&t));
-	std::string fullname = (IMG_DIR / (std::string(buff) + ".jpg")).string();*/
 	static int n = 0;
 	std::string fullname = (IMG_DIR / (std::to_string(n++) + ".jpg")).string();
 	std::cout << fullname << std::endl;
@@ -61,17 +47,19 @@ int main()
 			}
 
 			save(img);
-			//std::lock_guard<std::mutex> lock(mFrames);
-			//frames.push(img);
+			std::lock_guard<std::mutex> lock(mFrames);
+			frames.push(img);
 		});
 
 	std::thread t1([&imgListener]() { imgListener.handleConnections(); });
 
-	//*****ANDLE RECEIVED IMAGES*****
+	//*****HANDLE RECEIVED IMAGES*****
 	while (true)
 	{
 		while (frames.empty())
+		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+		}
 
 		cv::Mat img;
 		{
@@ -81,24 +69,29 @@ int main()
 		}
 		std::cout << "Got image from queue" << std::endl;
 
-		int length = img.total() * img.elemSize();
-		std::string data(it_base64_t(img.data), it_base64_t(img.data + length));
+		boost::system::error_code ec;
+		std::vector<unsigned char> buff;
+		cv::imencode(".jpg", img, buff);
+		int size = buff.size();
 
-		//PACKING
-		ptree pt;
-		pt.put("data", data);
-		pt.put("width", img.cols);
-		pt.put("height", img.rows);
-		pt.put("channels", img.elemSize());
-		std::stringstream ss;
-		write_json(ss, pt);
-		try
+		std::string data = std::to_string(size);
+		if (data.size() > BYTES_PER_NUM)
 		{
-			imgListener.getSocket().write_some(boost::asio::buffer(ss.str()));
+			std::cout << "Encoded image is too big. Skipping..." << std::endl;
+			continue;
 		}
-		catch (const boost::system::system_error& ex)
+		data = std::string(BYTES_PER_NUM - size, '0') + data;
+		write(imgListener.getSocket(), boost::asio::buffer(data), ec);
+		if (ec)
 		{
-			std::cout << "Failed to write to client: " << ex.what() << std::endl;
+			std::cout << "Unable to write to socket: " << ec.message() << std::endl;
+			//TODO: insert reaction on error
+		}
+		write(imgListener.getSocket(), boost::asio::buffer(buff), ec);
+		if (ec)
+		{
+			std::cout << "Unable to write to socket: " << ec.message() << std::endl;
+			//TODO: insert reaction on error
 		}
 	}
 

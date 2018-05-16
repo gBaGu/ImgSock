@@ -3,31 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#include <boost/archive/iterators/binary_from_base64.hpp>
-#include <boost/archive/iterators/transform_width.hpp>
-#include <boost/archive/iterators/remove_whitespace.hpp>
-#include <boost/bind.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
-
 #include "Setting.h"
-
-using namespace boost::archive::iterators;
-using boost::property_tree::ptree;
-
-typedef transform_width<binary_from_base64<remove_whitespace<std::string::const_iterator> >, 8, 6 > it_binary_t;
-
-
-size_t read_complete(char * buff, const error_code & err, size_t bytes)
-{
-	if (err) return 0;
-	if (bytes == 0)
-	{
-		return 1;
-	}
-
-	return *(buff + (bytes - 1)) == '}' ? 0 : 1;
-}
 
 
 ImageListener::ImageListener(boost::asio::io_service& ioService, size_t port)
@@ -41,7 +17,6 @@ ImageListener::ImageListener(boost::asio::io_service& ioService, size_t port)
 
 void ImageListener::handleConnections()
 {
-	const int BYTES_PER_NUM = 6;
 	char buff[BUFF_SIZE];
 
 	while (true)
@@ -61,7 +36,7 @@ void ImageListener::handleConnections()
 			std::cout << "Bytes (nImageSize): " << bytesRead << std::endl;
 			if (ec)
 			{
-				std::cout << "Unable to read from socket" << std::endl;
+				std::cout << "Unable to read from socket: " << ec.message() << std::endl;
 				alive = false;
 				continue;
 			}
@@ -106,42 +81,14 @@ void ImageListener::handleConnections()
 				continue;
 			}
 			//=========================
+
+			//std::cout << "Sending back " << str << " bytes (" << data.size() << ")" << std::endl;
+			//std:: cout << write(sock, boost::asio::buffer(data)) << std::endl;
+
 			std::vector<unsigned char> ucdata(data.begin(), data.begin() + nImageSize);
 			cv::Mat img = converter->fromData(ucdata);
 			onReceived(img);
 		}
 		sock.close();
 	}
-}
-
-cv::Mat ImageListener::parseJson(const std::string& json)
-{
-	ptree pt;
-	std::stringstream ss;
-	ss << json;
-	read_json(ss, pt);
-
-	std::vector<unsigned char> data;
-	int width = 0;
-	int height = 0;
-	int elemSize = 0;
-
-	std::string tmp;
-	tmp = pt.get<std::string>("type");
-	data = std::vector<unsigned char>(it_binary_t(tmp.begin()),
-									  it_binary_t(tmp.end()));
-
-	tmp = pt.get<std::string>("width");
-	std::cout << tmp << std::endl;
-	width = stoi(tmp);
-
-	tmp = pt.get<std::string>("height");
-	std::cout << tmp << std::endl;
-	height = stoi(tmp);
-
-	tmp = pt.get<std::string>("length");
-	std::cout << tmp << std::endl;
-	elemSize = stoi(tmp);
-
-	return cv::Mat(height, width, CV_8UC3, data.data());
 }
