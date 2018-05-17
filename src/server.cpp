@@ -38,20 +38,20 @@ int main()
 	boost::asio::io_service service;
 	tcp::acceptor acceptor(service, tcp::endpoint(tcp::v4(), PORT));
 	tcp::socket sock(service);
-	bool isConnected = false;
-	ImageSocket imsock(sock, converter);
-	imsock.setOnError([&isConnected]() { isConnected = false; });
-
-	std::queue<cv::Mat> frames;
-	std::mutex mFrames;
-	std::thread t([&]()
+	while (true)
 	{
-		while (true)
+		std::cout << "Listening..." << std::endl;
+		acceptor.accept(sock);
+		bool isConnected = true;
+		std::cout << "Got connection!\n";
+
+		ImageSocket imsock(sock, converter);
+		imsock.setOnError([&isConnected]() { isConnected = false; });
+
+		std::queue<cv::Mat> frames;
+		std::mutex mFrames;
+		std::thread t([&]()
 		{
-			std::cout << "Listening..." << std::endl;
-			acceptor.accept(sock);
-			std::cout << "Got connection!\n";
-			isConnected = true;
 			while (isConnected)
 			{
 				auto img = imsock.get();
@@ -65,29 +65,33 @@ int main()
 				std::lock_guard<std::mutex> lock(mFrames);
 				frames.push(img);
 			}
-			sock.close();
-		}
-	});
+		});
 
-	//*****HANDLE RECEIVED IMAGES*****
-	while (true)
-	{
-		while (frames.empty())
+		while (isConnected)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			while (frames.empty() && isConnected)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			}
+			if (frames.empty())
+			{
+				continue;
+			}
+
+			cv::Mat img;
+			{
+				std::lock_guard<std::mutex> lock(mFrames);
+				img = frames.front();
+				frames.pop();
+			}
+			std::cout << "Got image from queue" << std::endl;
+
+			imsock.put(img);
 		}
 
-		cv::Mat img;
-		{
-			std::lock_guard<std::mutex> lock(mFrames);
-			img = frames.front();
-			frames.pop();
-		}
-		std::cout << "Got image from queue" << std::endl;
-
-		imsock.put(img);
+		t.join();
+		sock.close();
 	}
-
-	t.join();
+	
 	return 0;
 }
