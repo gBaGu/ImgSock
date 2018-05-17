@@ -55,7 +55,7 @@ int main()
 	}
 	catch (const boost::system::system_error& ex)
 	{
-		std::cout << "Failed to write to client: " << ex.what() << std::endl;
+		std::cout << "Failed to write to server: " << ex.what() << std::endl;
 	}
 	std::cout << "Send: " << json << std::endl;
 
@@ -72,7 +72,7 @@ int main()
 
 	if (ec)
 	{
-		std::cout << "Failed to read data from socket: "
+		std::cout << "Failed to read response from server: "
 			<< "Error code: " << ec.message() << std::endl;
 	}
 
