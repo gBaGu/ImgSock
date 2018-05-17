@@ -80,14 +80,15 @@ int main()
 			std::cout << "Encoded image is too big. Skipping..." << std::endl;
 			continue;
 		}
-		data = std::string(BYTES_PER_NUM - size, '0') + data;
-		write(imgListener.getSocket(), boost::asio::buffer(data), ec);
+		data = std::string(BYTES_PER_NUM - data.size(), '0') + data;
+		std::cout << "Sending back: " << data << std::endl;
+		std::cout << write(imgListener.getSocket(), boost::asio::buffer(data), ec) << std::endl;
 		if (ec)
 		{
 			std::cout << "Unable to write to socket: " << ec.message() << std::endl;
 			//TODO: insert reaction on error
 		}
-		write(imgListener.getSocket(), boost::asio::buffer(buff), ec);
+		std::cout << write(imgListener.getSocket(), boost::asio::buffer(buff), ec) << std::endl;
 		if (ec)
 		{
 			std::cout << "Unable to write to socket: " << ec.message() << std::endl;
