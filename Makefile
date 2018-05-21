@@ -1,7 +1,7 @@
 BINDIR := bin
 
 server: mkdirs
-	g++ -std=c++14 src/server.cpp src/ImageListener.cpp src/ImageConverter.cpp \
+	g++ -std=c++14 src/server.cpp src/ImageIO.cpp src/ImageConverter.cpp \
 	-o $(BINDIR)/run \
 	-lstdc++fs -lpthread -lboost_system \
 	`pkg-config opencv --cflags --libs`

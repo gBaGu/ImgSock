@@ -1,20 +1,20 @@
-#include <iostream>
-#include <vector>
-#include <thread>
-#include <queue>
-#include <mutex>
 #include <chrono>
-#include <ctime>
 #include <experimental/filesystem>
+#include <iostream>
+#include <mutex>
+#include <queue>
+#include <thread>
+#include <vector>
 
 #include <boost/asio.hpp>
-
 #include <opencv2/opencv.hpp>
 
 #include "Setting.h"
-#include "ImageListener.h"
+#include "ImageIO.h"
+#include "ImageConverter.h"
 
 namespace fs = std::experimental::filesystem;
+using boost::asio::ip::tcp;
 
 const fs::path IMG_DIR = "img";
 
@@ -33,69 +33,64 @@ int main()
 	std::error_code ec;
 	fs::create_directories(IMG_DIR, ec);
 
+	std::shared_ptr<ImageConverter> converter = std::make_shared<JPEGConverter>();
+
 	boost::asio::io_service service;
-	ImageListener imgListener(service, PORT);
-
-	std::queue<cv::Mat> frames;
-	std::mutex mFrames;
-	imgListener.setOnReceived([&](cv::Mat img)
-		{
-			if (img.empty())
-			{
-				std::cout << "Image is empty." << std::endl;
-				return;
-			}
-
-			save(img);
-			std::lock_guard<std::mutex> lock(mFrames);
-			frames.push(img);
-		});
-
-	std::thread t1([&imgListener]() { imgListener.handleConnections(); });
-
-	//*****HANDLE RECEIVED IMAGES*****
+	tcp::acceptor acceptor(service, tcp::endpoint(tcp::v4(), PORT));
+	tcp::socket sock(service);
 	while (true)
 	{
-		while (frames.empty())
+		std::cout << "Listening..." << std::endl;
+		acceptor.accept(sock);
+		bool isConnected = true;
+		std::cout << "Got connection!\n";
+
+		ImageSocket imsock(sock, converter);
+		imsock.setOnError([&isConnected]() { isConnected = false; });
+
+		std::queue<cv::Mat> frames;
+		std::mutex mFrames;
+		std::thread t([&]()
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			while (isConnected)
+			{
+				auto img = imsock.get();
+				if (img.empty())
+				{
+					std::cout << "Image is empty." << std::endl;
+					continue;
+				}
+
+				save(img);
+				std::lock_guard<std::mutex> lock(mFrames);
+				frames.push(img);
+			}
+		});
+
+		while (isConnected)
+		{
+			while (frames.empty() && isConnected)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			}
+			if (frames.empty())
+			{
+				continue;
+			}
+
+			cv::Mat img;
+			{
+				std::lock_guard<std::mutex> lock(mFrames);
+				img = frames.front();
+				frames.pop();
+			}
+			std::cout << "Got image from queue" << std::endl;
+			imsock.put(img);
 		}
 
-		cv::Mat img;
-		{
-			std::lock_guard<std::mutex> lock(mFrames);
-			img = frames.front();
-			frames.pop();
-		}
-		std::cout << "Got image from queue" << std::endl;
-
-		boost::system::error_code ec;
-		std::vector<unsigned char> buff;
-		cv::imencode(".jpg", img, buff);
-		int size = buff.size();
-
-		std::string data = std::to_string(size);
-		if (data.size() > BYTES_PER_NUM)
-		{
-			std::cout << "Encoded image is too big. Skipping..." << std::endl;
-			continue;
-		}
-		data = std::string(BYTES_PER_NUM - data.size(), '0') + data;
-		std::cout << "Sending back: " << data << std::endl;
-		std::cout << write(imgListener.getSocket(), boost::asio::buffer(data), ec) << std::endl;
-		if (ec)
-		{
-			std::cout << "Unable to write to socket: " << ec.message() << std::endl;
-			//TODO: insert reaction on error
-		}
-		std::cout << write(imgListener.getSocket(), boost::asio::buffer(buff), ec) << std::endl;
-		if (ec)
-		{
-			std::cout << "Unable to write to socket: " << ec.message() << std::endl;
-			//TODO: insert reaction on error
-		}
+		t.join();
+		sock.close();
 	}
 
-	t1.join();
 	return 0;
 }
