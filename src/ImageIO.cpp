@@ -74,6 +74,10 @@ cv::Mat ImageSocket::get()
 
 void ImageSocket::put(cv::Mat image)
 {
+	if (image.empty())
+	{
+		return;
+	}
 	error_code ec;
 	std::vector<unsigned char> buff;
 	cv::imencode(".jpg", image, buff);
