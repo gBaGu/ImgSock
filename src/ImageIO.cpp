@@ -101,3 +101,25 @@ void ImageSocket::put(cv::Mat image)
 		return;
 	}
 }
+
+
+cv::Mat ThreadSafeQueue::get()
+{
+	std::unique_lock<std::mutex> lock(mutex_);
+	while (queue_.empty())
+	{
+		cond_.wait(lock);
+	}
+	cv::Mat img = queue_.front();
+	queue_.pop();
+	return img;
+}
+
+void ThreadSafeQueue::put(cv::Mat image)
+{
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		queue_.push(image);
+	}
+	cond_.notify_one();
+}

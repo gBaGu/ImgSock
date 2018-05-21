@@ -1,6 +1,9 @@
 #pragma once
+#include <condition_variable>
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <queue>
 
 #include <boost/asio.hpp>
 #include <opencv2/opencv.hpp>
@@ -43,4 +46,22 @@ private:
 
 	tcp::socket& sock_;
 	std::shared_ptr<ImageConverter> converter_;
+};
+
+
+class ThreadSafeQueue : public ImageProducer, public ImageConsumer
+{
+	ThreadSafeQueue(const ThreadSafeQueue&) = delete;
+	ThreadSafeQueue(ThreadSafeQueue&&) = delete;
+
+public:
+	ThreadSafeQueue() {}
+
+	virtual cv::Mat get();
+	virtual void put(cv::Mat image);
+
+private:
+	std::queue<cv::Mat> queue_;
+	std::mutex mutex_;
+	std::condition_variable cond_;
 };
