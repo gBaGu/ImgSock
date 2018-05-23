@@ -17,6 +17,8 @@ using boost::system::error_code;
 class ImageProducer
 {
 public:
+	virtual ~ImageProducer() = 0;
+
 	virtual cv::Mat get() = 0;
 };
 
@@ -24,6 +26,8 @@ public:
 class ImageConsumer
 {
 public:
+	virtual ~ImageConsumer() = 0;
+	
 	virtual void put(cv::Mat) = 0;
 };
 

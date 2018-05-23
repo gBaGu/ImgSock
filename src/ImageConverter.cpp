@@ -3,6 +3,12 @@
 #include "Setting.h"
 
 
+ImageConverter::~ImageConverter()
+{
+	
+}
+
+
 cv::Mat JPEGConverter::fromData(const std::vector<unsigned char>& data)
 {
 	cv::Mat tmp(data);

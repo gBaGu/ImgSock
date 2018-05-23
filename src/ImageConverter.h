@@ -8,7 +8,7 @@
 class ImageConverter
 {
 public:
-	virtual ~ImageConverter() {}
+	virtual ~ImageConverter() = 0;
 
 	virtual cv::Mat fromData(const std::vector<unsigned char>& data) = 0;
 	virtual std::vector<unsigned char> toData(cv::Mat image) = 0;

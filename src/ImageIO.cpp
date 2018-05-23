@@ -5,6 +5,18 @@
 #include <vector>
 
 
+ImageProducer::~ImageProducer()
+{
+	
+}
+
+
+ImageConsumer::~ImageConsumer()
+{
+	
+}
+
+
 ImageSocket::ImageSocket(tcp::socket& sock,
 	std::shared_ptr<ImageConverter> converter)
 	:
