@@ -78,10 +78,8 @@ void ImageSocket::put(cv::Mat image)
 	{
 		return;
 	}
-	error_code ec;
-	std::vector<unsigned char> buff;
-	cv::imencode(".jpg", image, buff);
 
+	std::vector<unsigned char> buff = converter_->toData(image);
 	std::string sizeString = std::to_string(buff.size());
 	if (sizeString.size() > BYTES_PER_NUM)
 	{
@@ -90,6 +88,7 @@ void ImageSocket::put(cv::Mat image)
 	}
 	sizeString = std::string(BYTES_PER_NUM - sizeString.size(), '0') + sizeString;
 	std::cout << "Sending back: " << sizeString << " bytes..." << std::endl;
+	error_code ec;
 	std::cout << write(sock_, boost::asio::buffer(sizeString), ec) << std::endl;
 	if (ec)
 	{

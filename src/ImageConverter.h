@@ -11,15 +11,21 @@ public:
 	virtual ~ImageConverter() {}
 
 	virtual cv::Mat fromData(const std::vector<unsigned char>& data) = 0;
+	virtual std::vector<unsigned char> toData(cv::Mat image) = 0;
 };
 
 
 class JPEGConverter : public ImageConverter
 {
 public:
-	JPEGConverter() : ImageConverter() {}
+	JPEGConverter(int quality) : ImageConverter(), quality_(quality)
+	{}
 
 	cv::Mat fromData(const std::vector<unsigned char>& data);
+	std::vector<unsigned char> toData(cv::Mat image);
+
+private:
+	int quality_;
 };
 
 
@@ -29,6 +35,7 @@ public:
 	RGB565Converter() : ImageConverter() {}
 
 	cv::Mat fromData(const std::vector<unsigned char>& data);
+	std::vector<unsigned char> toData(cv::Mat image);
 };
 
 
@@ -38,4 +45,5 @@ public:
 	YUVConverter() : ImageConverter() {}
 
 	cv::Mat fromData(const std::vector<unsigned char>& data);
+	std::vector<unsigned char> toData(cv::Mat image);
 };

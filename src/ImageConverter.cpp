@@ -10,6 +10,16 @@ cv::Mat JPEGConverter::fromData(const std::vector<unsigned char>& data)
 	return img;
 }
 
+std::vector<unsigned char> JPEGConverter::toData(cv::Mat image)
+{
+	std::vector<int> params;
+	params.push_back(CV_IMWRITE_JPEG_QUALITY);
+	params.push_back(quality_);
+	std::vector<unsigned char> buff;
+	cv::imencode(".jpg", image, buff, params);
+	return buff;
+}
+
 
 cv::Mat RGB565Converter::fromData(const std::vector<unsigned char>& data)
 {
@@ -34,6 +44,12 @@ cv::Mat RGB565Converter::fromData(const std::vector<unsigned char>& data)
 	return img;
 }
 
+std::vector<unsigned char> RGB565Converter::toData(cv::Mat image)
+{
+	//TODO implement
+	return std::vector<unsigned char>();
+}
+
 
 cv::Mat YUVConverter::fromData(const std::vector<unsigned char>& data)
 {
@@ -43,4 +59,10 @@ cv::Mat YUVConverter::fromData(const std::vector<unsigned char>& data)
 	cv::Mat img;
 	cv::cvtColor(imgYV12, img, CV_YUV2BGR_YV12);
 	return img;
+}
+
+std::vector<unsigned char> YUVConverter::toData(cv::Mat image)
+{
+	//TODO implement
+	return std::vector<unsigned char>();
 }

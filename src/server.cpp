@@ -45,7 +45,8 @@ int main()
 		std::cout << "Got connection!\n";
 
 		//*****Input/Output*****
-		std::shared_ptr<ImageConverter> converter = std::make_shared<JPEGConverter>();
+		std::shared_ptr<ImageConverter> converter =
+			std::make_shared<JPEGConverter>(40);
 		std::shared_ptr<ImageSocket> imsock =
 			std::make_shared<ImageSocket>(sock, converter);
 		imsock->setOnError([&isConnected]() { isConnected = false; });
