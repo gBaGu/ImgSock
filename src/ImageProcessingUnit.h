@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <memory>
 
 #include "ImageIO.h"
@@ -15,10 +16,10 @@ public:
 	using consumer_ptr = std::shared_ptr<ImageConsumer>;
 	using processor_ptr = std::shared_ptr<ImageProcessor>;
 
-	ImageProcessingUnit(producer_ptr producer, consumer_ptr consumer)
-		: producer_(producer), consumer_(consumer) {}
+	ImageProcessingUnit(producer_ptr producer,
+		consumer_ptr consumer);
 
-	void run();
+	void run(std::function<bool()> upCondition);
 
 private:
 	producer_ptr producer_;

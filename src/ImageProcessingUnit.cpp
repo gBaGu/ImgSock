@@ -1,9 +1,17 @@
 #include "ImageProcessingUnit.h"
 
 
-void ImageProcessingUnit::run()
+ImageProcessingUnit::ImageProcessingUnit(producer_ptr producer,
+	consumer_ptr consumer)
+	:
+	producer_(producer), consumer_(consumer)
 {
-	while (true)
+
+}
+
+void ImageProcessingUnit::run(std::function<bool()> upCondition)
+{
+	while (upCondition())
 	{
 		auto img = producer_->get();
 		processor_->process(img);

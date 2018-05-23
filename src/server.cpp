@@ -59,8 +59,9 @@ int main()
 		ImageProcessingUnit sendingUnit(queue, imsock);
 		//===================================================
 		//*****Launching units*****
-		std::thread tRecievingUnit(&ImageProcessingUnit::run, &recievingUnit);
-		std::thread tSendingUnit(&ImageProcessingUnit::run, &sendingUnit);
+		auto cond = [&isConnected]() { return isConnected == true; };
+		std::thread tRecievingUnit(&ImageProcessingUnit::run, &recievingUnit, cond);
+		std::thread tSendingUnit(&ImageProcessingUnit::run, &sendingUnit, cond);
 		tRecievingUnit.join();
 		tSendingUnit.join();
 		//=========================
