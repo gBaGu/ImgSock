@@ -9,6 +9,11 @@ ImageProcessingUnit::ImageProcessingUnit(producer_ptr producer,
 
 }
 
+void ImageProcessingUnit::setProcessor(processor_ptr processor)
+{
+	processor_ = processor;
+}
+
 void ImageProcessingUnit::run(std::function<bool()> upCondition)
 {
 	while (upCondition())

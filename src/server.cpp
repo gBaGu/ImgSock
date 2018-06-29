@@ -58,6 +58,8 @@ int main()
 		//*****Creating and linking ImageProcessingUnits*****
 		ImageProcessingUnit recievingUnit(imsock, queue);
 		ImageProcessingUnit sendingUnit(queue, imsock);
+		auto processor = std::make_shared<CSocketAPIProcessor>();
+		sendingUnit.setProcessor(processor);
 		//===================================================
 		//*****Launching units*****
 		auto cond = [&isConnected]() { return isConnected == true; };

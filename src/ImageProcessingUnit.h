@@ -19,6 +19,14 @@ public:
 	ImageProcessingUnit(producer_ptr producer,
 		consumer_ptr consumer);
 
+	/*
+	sets an object that will modify image before sending it to consumer
+	*/
+	void setProcessor(processor_ptr processor);
+
+	/*
+	runs the cycle of image processing until upCondition returns with false
+	*/
 	void run(std::function<bool()> upCondition);
 
 private:
