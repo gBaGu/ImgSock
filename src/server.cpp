@@ -37,6 +37,7 @@ int main()
 	boost::asio::io_service service;
 	tcp::acceptor acceptor(service, tcp::endpoint(tcp::v4(), PORT));
 	tcp::socket sock(service);
+	std::thread t([&service]() { service.run(); });
 	while (true)
 	{
 		std::cout << "Listening..." << std::endl;
@@ -71,6 +72,7 @@ int main()
 
 		sock.close();
 	}
+	t.join();
 	
 	return 0;
 }

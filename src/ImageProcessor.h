@@ -31,7 +31,7 @@ public:
 };
 
 
-//Not working currently
+//TODO: test it
 class BoostSocketAPIProcessor : public ImageProcessor
 {
 public:
@@ -43,8 +43,10 @@ public:
 	static const int BYTES_PER_NUM = 6;
 
 private:
+	bool write(const cv::Mat& image);
+	std::string read();
+
 	tcp::endpoint endpoint_;
-	boost::asio::deadline_timer deadline_;
 	boost::posix_time::time_duration timeout_;
 	tcp::socket sock_;
 };

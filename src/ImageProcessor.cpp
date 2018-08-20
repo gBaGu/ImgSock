@@ -1,6 +1,7 @@
 #include "ImageProcessor.h"
 
 #include <chrono>
+#include <iostream>
 #include <thread>
 #include <vector>
 
@@ -34,70 +35,91 @@ void CSocketAPIProcessor::process(cv::Mat& image)
 BoostSocketAPIProcessor::BoostSocketAPIProcessor(boost::asio::io_service& service,
 	tcp::endpoint endpoint, boost::posix_time::time_duration timeout)
 	:
-	endpoint_(endpoint), deadline_(service), timeout_(timeout), sock_(service)
+	endpoint_(endpoint), timeout_(timeout), sock_(service)
 {
 }
 
 void BoostSocketAPIProcessor::process(cv::Mat& image)
 {
-	std::cout << '.';
-	std::cout.flush();
-	deadline_.expires_from_now(boost::posix_time::milliseconds(110));
-	boost::system::error_code ec = boost::asio::error::would_block;
-	sock_.async_connect(endpoint_,
-		[&ec](const boost::system::error_code& error)
-		{
-			ec = error; std::cout << '='; std::cout.flush();
-		});
-	do sock_.get_io_service().run_one(); while (ec == boost::asio::error::would_block);
-	std::cout << ',';
-	std::cout.flush();
-	if (ec || !sock_.is_open())
+	bool done = false;
+	boost::asio::deadline_timer timer(sock_.get_io_service());
+	timer.expires_from_now(timeout_);
+	timer.async_wait([&done, this](const auto& error)
 	{
-		std::cout << "Failed to connect to socket" << std::endl;
+		if (!error)
+		{
+			if (!done)
+			{
+				sock_.cancel();
+			}
+		}
+	});
+
+	boost::system::error_code ec;
+	sock_.connect(endpoint_, ec);
+	if (ec)
+	{
+		std::cout << "Failed to connect: " << ec.message() << std::endl;
 		return;
 	}
+	if (!write(image))
+	{
+		return;
+	}
+	std::string filename = read();
+	done = true;
+	timer.cancel();
+	auto retImage = cv::imread(filename);
+	if (retImage.empty())
+	{
+		std::cout << "Cant read result of API" << std::endl;
+		return;
+	}
+	image = retImage;
+	sock_.close();
+}
 
+bool BoostSocketAPIProcessor::write(const cv::Mat& image)
+{
 	std::vector<unsigned char> buff;
 	cv::imencode(".jpg", image, buff);
 	std::string sizeString = std::to_string(buff.size());
 	if (sizeString.size() > BYTES_PER_NUM)
 	{
 		std::cout << "Encoded image is too big. Skipping..." << std::endl;
-		return;
+		return false;
 	}
 	sizeString = std::string(BYTES_PER_NUM - sizeString.size(), '0') + sizeString;
-	std::cout << write(sock_, boost::asio::buffer(sizeString), ec) << std::endl;
+	boost::system::error_code ec;
+	boost::asio::write(sock_, boost::asio::buffer(sizeString), ec);
 	if (ec)
 	{
 		std::cout << "Failed to write to socket: " << ec.message() << std::endl;
-		return;
+		return false;
 	}
-	std::cout << write(sock_, boost::asio::buffer(buff), ec) << std::endl;
+	boost::asio::write(sock_, boost::asio::buffer(buff), ec);
 	if (ec)
 	{
 		std::cout << "Failed to write to socket: " << ec.message() << std::endl;
-		return;
+		return false;
 	}
+	return true;
+}
 
-	char retbuff[512] = { '\0' };
-	deadline_.expires_from_now(boost::posix_time::milliseconds(110));
-	ec = boost::asio::error::would_block;
-	boost::asio::async_read(sock_, boost::asio::buffer(retbuff), var(ec) = _1);
-	do sock_.get_io_service().run_one(); while (ec == boost::asio::error::would_block);
-
-	std::string filename(retbuff);
-	auto retImage = cv::imread(filename);
-	if (retImage.empty())
+std::string BoostSocketAPIProcessor::read()
+{
+	boost::asio::streambuf buff;
+	boost::system::error_code ec;
+	boost::asio::read_until(sock_, buff, '\n', ec);
+	if (ec)
 	{
-		std::cout << "Cant read result of API" << std::endl;
+		std::cout << "Failed to read response from server: "
+			<< ec.message() << std::endl;
 	}
-	else
-	{
-		std::cout << "Got image from Haik" << std::endl;
-		image = retImage;
-	}
-	sock_.close();
+	std::istream is(&buff);
+	std::string ret;
+	is >> ret;
+	return ret;
 }
 
 
